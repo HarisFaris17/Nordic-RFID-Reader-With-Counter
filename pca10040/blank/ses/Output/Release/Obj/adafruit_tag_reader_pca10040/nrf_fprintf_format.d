@@ -1,5 +1,5 @@
 Output/Release/Obj/adafruit_tag_reader_pca10040/nrf_fprintf_format.o: \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\external\fprintf\nrf_fprintf_format.c \
+ C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\examples\My\ Project\adafruit_tag_reader\pca10040\blank\ses\nrf_fprintf_format.c \
  ../../../../../../components/libraries/util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/__SEGGER_RTL.h \
@@ -32,5 +32,6 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/nrf_fprintf_format.o: \
  ../../../../../../components/libraries/util/nrf_assert.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/stdarg.h \
  ../../../../../../components/libraries/util/nrf_assert.h \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\external\fprintf\nrf_fprintf.h \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\external\fprintf\nrf_fprintf_format.h
+ ../../../../../../external/fprintf/nrf_fprintf.h \
+ ../../../../../../external/fprintf/nrf_fprintf_format.h \
+ ../../../../../../external/fprintf/nrf_fprintf.h

@@ -53,6 +53,12 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/main.o: \
  ../../../../../../components/libraries/button/app_button.h \
  ../../../../../../components/libraries/hardfault/hardfault.h \
  ../../../../../../components/libraries/delay/nrf_delay.h \
+ ../../../../../../integration/nrfx/legacy/nrf_drv_twi.h \
+ ../../../../../../modules/nrfx/drivers/include/nrfx_twim.h \
+ ../../../../../../modules/nrfx/drivers/include/nrfx_twi_twim.h \
+ ../../../../../../modules/nrfx/hal/nrf_twim.h \
+ ../../../../../../modules/nrfx/drivers/include/nrfx_twi.h \
+ ../../../../../../modules/nrfx/hal/nrf_twi.h \
  ../../../../../../components/libraries/util/sdk_macros.h \
  ../../../../../../external/nfc_adafruit_library/adafruit_pn532.h \
  ../../../../../../components/nfc/t2t_parser/nfc_t2t_parser.h \
@@ -84,5 +90,9 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/main.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/stdlib.h \
  ../../../../../../components/libraries/balloc/nrf_balloc.h \
  ../../../../../../components/libraries/log/nrf_log_default_backends.h \
+ ../../../../../../external/oled/ssd1306_oled.h \
  ../../../../../../components/libraries/timer/app_timer.h \
- ../../../../../../components/libraries/sortlist/nrf_sortlist.h
+ ../../../../../../components/libraries/sortlist/nrf_sortlist.h \
+ ../../../../../../components/libraries/fstorage/nrf_fstorage.h \
+ ../../../../../../components/libraries/fstorage/nrf_fstorage_nvmc.h \
+ ../../../../../../components/libraries/fstorage/nrf_fstorage.h

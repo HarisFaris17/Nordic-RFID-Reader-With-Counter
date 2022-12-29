@@ -14,7 +14,7 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/adafruit_pn532.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/stdbool.h \
  ../../../../../../components/libraries/util/sdk_errors.h \
  ../../../../../../components/drivers_nrf/nrf_soc_nosd/nrf_error.h \
- ../../../../../../modules/nrfx/hal/nrf_gpio.h \
+ ../../../../../../integration/nrfx/legacy/nrf_drv_twi.h \
  ../../../../../../modules/nrfx/nrfx.h \
  ../../../../../../integration/nrfx/nrfx_config.h \
  ../../../../../../modules/nrfx/drivers/nrfx_common.h \
@@ -51,13 +51,13 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/adafruit_pn532.o: \
  ../../../../../../modules/nrfx/soc/nrfx_atomic.h \
  ../../../../../../components/libraries/util/sdk_resources.h \
  ../../../../../../modules/nrfx/drivers/nrfx_errors.h \
- ../../../../../../components/libraries/delay/nrf_delay.h \
- ../../../../../../integration/nrfx/legacy/nrf_drv_twi.h \
  ../../../../../../modules/nrfx/drivers/include/nrfx_twim.h \
  ../../../../../../modules/nrfx/drivers/include/nrfx_twi_twim.h \
  ../../../../../../modules/nrfx/hal/nrf_twim.h \
  ../../../../../../modules/nrfx/drivers/include/nrfx_twi.h \
  ../../../../../../modules/nrfx/hal/nrf_twi.h \
+ ../../../../../../modules/nrfx/hal/nrf_gpio.h \
+ ../../../../../../components/libraries/delay/nrf_delay.h \
  ../../../../../../components/libraries/util/app_error.h \
  ../../../../../../components/libraries/log/nrf_log.h \
  ../../../../../../components/libraries/util/sdk_common.h \

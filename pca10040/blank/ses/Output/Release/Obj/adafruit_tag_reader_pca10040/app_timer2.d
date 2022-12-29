@@ -1,6 +1,6 @@
 Output/Release/Obj/adafruit_tag_reader_pca10040/app_timer2.o: \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\components\libraries\timer\app_timer2.c \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\components\libraries\timer\app_timer.h \
+ C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\examples\My\ Project\adafruit_tag_reader\pca10040\blank\ses\app_timer2.c \
+ ../../../../../../components/libraries/timer/app_timer.h \
  ../config/sdk_config.h \
  ../../../../../../components/libraries/util/app_error.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/stdint.h \
@@ -63,5 +63,5 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/app_timer2.o: \
  ../../../../../../components/libraries/strerror/nrf_strerror.h \
  ../../../../../../components/libraries/log/src/nrf_log_internal.h \
  ../../../../../../components/libraries/log/nrf_log_types.h \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\components\libraries\timer\drv_rtc.h \
+ ../../../../../../components/libraries/timer/drv_rtc.h \
  ../../../../../../modules/nrfx/hal/nrf_rtc.h

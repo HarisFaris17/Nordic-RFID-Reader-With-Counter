@@ -57,6 +57,7 @@
 #include "bsp.h"
 #include "hardfault.h"
 #include "nrf_delay.h"
+#include "nrf_drv_twi.h"
 #include "sdk_macros.h"
 #include "sdk_config.h"
 
@@ -71,8 +72,13 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#include "ssd1306_oled.h"
+
 #include "app_button.h"
 #include "app_timer.h"
+
+#include "nrf_fstorage.h"
+#include "nrf_fstorage_nvmc.h"
 
 #define SEL_RES_CASCADE_BIT_NUM            3                                              /// Number of Cascade bit within SEL_RES byte.
 #define SEL_RES_TAG_PLATFORM_MASK          0x60                                           /// Mask of Tag Platform bit group within SEL_RES byte.
@@ -93,20 +99,24 @@
 
 #define led 31
 
+#define DELAY_CHANGE_STATE_DISPLAY          2000                                          /// delay state change from START to COUNTING or from COUNTING DONE to IDLE
+
+#define STORE_VAR_START_ADDR_FLASH          0x3e000                                       // starting address to store data in flash
+#define STORE_VAR_END_ADDR_FLASH            0x3ffff                                       // end address (exclusive) to store data in flash
+#define OFFSET_ADDR_COUNTER                 0x0                                           // offset address reference to STORE_VAR_START_ADDR_FLASH in flash to store the counter 
+#define OFFSET_ADDR_LENGTH_RFID_ID          (OFFSET_ADDR_COUNTER+4)                       // offset in flash reference to OFFSET_ADDR_COUNTER (note : the counter is 4-byte, i.e. uint32_t)
+#define OFFSET_ADDR_RFID_ID                 (OFFSET_ADDR_LENGTH_RFID_ID+4)
+#define 
+
 
 typedef struct{
     bool active;
-    int counter;
+    uint32_t counter;
     uint8_t nfc_id_len;              ///< UID length.
     uint8_t nfc_id[MAX_NFC_A_ID_LEN]; ///< NFC-A UID.
 }active_nfc;
 
 
-// object to store the received nfc
-nfc_a_tag_info m_nfc_tag;
-
-// object to store current active nfc
-active_nfc m_active_nfc;
 
 /**
  * @brief Possible Tag Types.
@@ -118,6 +128,76 @@ typedef enum
     NFC_TT_NOT_SUPPORTED ///< Tag Type not supported.
 } nfc_tag_type_t;
 
+// @brief Possible state of display
+typedef enum
+{
+    DISPLAY_IDLE,
+    DISPLAY_START,
+    DISPLAY_COUNTING,
+    DISPLAY_COUNTING_DONE,
+} display_state_type_t;
+
+
+// =================Declarations=================
+
+static void update_display_counter();
+
+static void button_init();
+
+static void update_display_state(display_state_type_t display_state);
+
+static void timer_handler(void * p_context);
+
+static void update_display_state(display_state_type_t display_state);
+
+static void display_counting_done();
+
+static void fstorage_handler(nrf_fstorage_evt_t * p_evt);
+
+static display_state_type_t m_display_state;
+
+// object to store the received nfc
+nfc_a_tag_info m_nfc_tag;
+
+// object to store current active nfc
+active_nfc m_active_nfc;
+
+// object of twi
+static nrf_drv_twi_t m_twi_master = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
+
+// object timer
+APP_TIMER_DEF(m_timer);
+
+// object fstorage to store the counting and 
+NRF_FSTORAGE_DEF(nrf_fstorage_t m_fstorage) = {
+  // the start address in flash to store bytes
+  .start_addr = 0x3e000,
+  // the end address (the end address is exclusive) in flash to store bytes.
+  /** the total bytes that can be stored between start_addr and end_addr is 
+  *end_addr-start_addr = 0x3ffff - 0x3e000 = 0x1fff (it is more than enough to store just RFID id, 
+  the length of RFID id, and counter)
+  **/
+  .end_addr   = 0x3ffff,
+  .evt_handler= fstorage_handler,
+};
+
+static void fstorage_handler(nrf_fstorage_evt_t * p_evt){
+    if(p_evt->result != NRF_SUCCESS){
+      printf("The operation to fstorage failed!\n");
+      return;
+    }
+    else{
+      if(p_evt->id == NRF_FSTORAGE_EVT_WRITE_RESULT){
+        printf("Writing operation on fstorage succedd!\n");
+      }
+      else if(p_evt->id == NRF_FSTORAGE_EVT_READ_RESULT){
+        printf("Reading operation on fstorage succedd!\n");
+      }
+      else if(p_evt->id == NRF_FSTORAGE_EVT_ERASE_RESULT){
+        printf("Erase operation on fstorage succedd!\n");
+      }
+    }
+}
 
 /**
  * @brief Macro for handling errors returne by Type 4 Tag modules.
@@ -138,9 +218,19 @@ void utils_setup(void)
     //bsp_board_init(BSP_INIT_LEDS);
     ret_code_t err;
     //err = NRF_LOG_INIT(NULL);
-    APP_ERROR_CHECK(NRF_LOG_INIT(NULL));
+    err = NRF_LOG_INIT(NULL);
+    APP_ERROR_CHECK(err);
     NRF_LOG_DEFAULT_BACKENDS_INIT();
+
+    button_init();
+    nrf_gpio_cfg_output(led);
+
     err = app_timer_init();
+    APP_ERROR_CHECK(err);
+    err = app_timer_create(&m_timer,APP_TIMER_MODE_SINGLE_SHOT,timer_handler);
+    APP_ERROR_CHECK(err);
+
+    err = nrf_fstorage_init(&m_fstorage,&nrf_fstorage_nvmc,NULL);
     APP_ERROR_CHECK(err);
 }
 
@@ -366,6 +456,43 @@ nfc_tag_type_t tag_type_identify(uint8_t sel_res)
     return NFC_TT_NOT_SUPPORTED;
 }
 
+static void twi_event_handler(nrf_drv_twi_evt_t const * p_event,void * p_context){
+  if(p_event->type==NRF_DRV_TWI_EVT_ADDRESS_NACK){
+    NRF_LOG_INFO("No Acknowledgement after transmitted slave address byte");
+  }
+  else if(p_event->type==NRF_DRV_TWI_EVT_DATA_NACK){
+    NRF_LOG_INFO("No Acknowledgement after transmitted data address byte");
+  }
+  else if(p_event->type==NRF_DRV_TWI_EVT_DONE){
+    NRF_LOG_INFO("Data byte transmitted");
+  }
+}
+
+ret_code_t i2c_init(){
+  ret_code_t err_code;
+  nrf_drv_twi_config_t twi_config = NRF_DRV_TWI_DEFAULT_CONFIG;
+  twi_config.scl = SCL_I2C_PIN;
+  twi_config.sda = SDA_I2C_PIN;
+  printf("Creating I2C..\n");
+
+  //@ Note : the event handler of twi should be null (don't know why)
+  err_code = nrf_drv_twi_init(&m_twi_master,&twi_config,NULL,NULL);
+  if(err_code != NRF_SUCCESS){
+    printf("Failed to init TWI, error code : %d\n",err_code);
+    return err_code;
+  }
+
+  nrf_drv_twi_enable(&m_twi_master);
+  return NRF_SUCCESS;
+}
+
+
+ret_code_t pn532_init(){
+  ret_code_t err_code;
+  err_code = adafruit_pn532_init(&m_twi_master,false);
+  return err_code;
+}
+
 
 /**
  * @brief Function for detecting a Tag, identifying its Type and reading data from it.
@@ -423,7 +550,10 @@ void after_read_delay(void)
     nrf_delay_ms(TAG_AFTER_READ_DELAY);
 }
 
+//================Definitions================
+
 static void button_event_handler(uint8_t pin_no, uint8_t action){
+  ret_code_t err;
   printf("Button event handler called with pin : %d\n",pin_no);
   if(action==APP_BUTTON_PUSH){
       if(m_active_nfc.active){
@@ -432,6 +562,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
             m_active_nfc.counter++;
             printf("Counter up\n");
             printf("Current counter : %d\n",m_active_nfc.counter);
+            update_display_counter();
             break;
 
           case BUTTON_COUNTER_DOWN:
@@ -441,6 +572,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
             }else{
               (m_active_nfc).counter--;
               printf("Current counter : %d",m_active_nfc.counter);
+              update_display_counter();
             }
             break;
 
@@ -448,13 +580,20 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
             printf("Counting done!\n");
             m_active_nfc.active=false;
             m_active_nfc.active=0;
+            m_active_nfc.counter=0;
             m_active_nfc.nfc_id_len=0;
             for(int i=0;i<MAX_NFC_A_ID_LEN;i++){
               m_active_nfc.nfc_id[i] = 0;
             }
             nrf_gpio_pin_clear(led);
+            update_display_state(DISPLAY_COUNTING_DONE);
+            err = app_timer_start(m_timer,
+                                  APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),
+                                  &m_display_state);
+            APP_ERROR_CHECK(err);
             break;
         }
+        
       }
       else{
         printf("There is no Tag registered now\n");
@@ -466,22 +605,18 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
 
 static void button_init(){
   ret_code_t err;
-  //static app_button_cfg_t button = {.pin_no = 8,
-  //                                  .active_state = APP_BUTTON_ACTIVE_LOW,
-  //                                  .pull_cfg = NRF_GPIO_PIN_PULLUP,
-  //                                  .button_handler = button_event_handler}
   static app_button_cfg_t buttons[] = {
                                       { .pin_no = BUTTON_COUNTER_UP,
                                         .active_state = APP_BUTTON_ACTIVE_LOW,
                                         .pull_cfg = NRF_GPIO_PIN_PULLUP,
                                         .button_handler = button_event_handler
                                         },
-                                      {
-                                        .pin_no = BUTTON_COUNTER_DOWN,
-                                        .active_state = APP_BUTTON_ACTIVE_LOW,
-                                        .pull_cfg = NRF_GPIO_PIN_PULLUP,
-                                        .button_handler = button_event_handler
-                                      },
+                                      //{
+                                      //  .pin_no = BUTTON_COUNTER_DOWN,
+                                      //  .active_state = APP_BUTTON_ACTIVE_LOW,
+                                      //  .pull_cfg = NRF_GPIO_PIN_PULLUP,
+                                      //  .button_handler = button_event_handler
+                                      //},
                                       {
                                         .pin_no = BUTTON_DONE,
                                         .active_state = APP_BUTTON_ACTIVE_LOW,
@@ -493,9 +628,11 @@ static void button_init(){
   printf("Button count %d\n",button_count);
   err = app_button_init(buttons,button_count,APP_TIMER_TICKS(100));
   APP_ERROR_CHECK(err);
-  printf("Button has initialized\n");
+  printf("Button has been initialized\n");
+
   err = app_button_enable();
   APP_ERROR_CHECK(err);
+
   printf("Button has enabled\n");
 }
 
@@ -524,30 +661,111 @@ static void after_found(){
     }
     printf("\r\n");
     nrf_gpio_pin_set(led);
+    update_display_state(DISPLAY_START);
+    app_timer_start(m_timer,APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),&m_display_state);
   }
 }
 
+static void timer_handler(void * p_context){
+  printf("Timer handler called\n");
+  display_state_type_t display_state = *(display_state_type_t *)p_context;
+
+  if (display_state == DISPLAY_START){
+    update_display_state(DISPLAY_COUNTING);
+  }
+  else if (display_state == DISPLAY_COUNTING_DONE){
+    update_display_state(DISPLAY_IDLE);
+  }
+
+}
+
+static void display_idle(){
+    ssd1306_clear_display();
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58, SSD1306_LCDHEIGHT / 2 - 8, 'I', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58 + 18, SSD1306_LCDHEIGHT / 2 - 8, 'D', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58 + 36, SSD1306_LCDHEIGHT / 2 - 8, 'L', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58 + 54, SSD1306_LCDHEIGHT / 2 - 8, 'E', WHITE, BLACK, 3);
+    ssd1306_display();
+}
+
+static void display_start(){
+    ssd1306_clear_display();
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 40, SSD1306_LCDHEIGHT / 2 - 8, 'S', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 40 + 18, SSD1306_LCDHEIGHT / 2 - 8, 'T', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 40 + 36, SSD1306_LCDHEIGHT / 2 - 8, 'A', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 40 + 54, SSD1306_LCDHEIGHT / 2 - 8, 'R', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 40 + 72, SSD1306_LCDHEIGHT / 2 - 8, 'T', WHITE, BLACK, 3);
+    ssd1306_display();
+}
+
+static void update_display_counter(){
+    // @ this can be optimized
+    static int16_t start = 6;
+    ssd1306_clear_display();
+    ssd1306_draw_char(start, 6, 'C', WHITE, BLACK, 1);
+    ssd1306_draw_char(start + 6, 6, 'o', WHITE, BLACK, 1);
+    ssd1306_draw_char(start + 12, 6, 'u', WHITE, BLACK, 1);
+    ssd1306_draw_char(start + 18, 6, 'n', WHITE, BLACK, 1);
+    ssd1306_draw_char(start + 24, 6, 't', WHITE, BLACK, 1);
+    auto counter = m_active_nfc.counter;
+    // maximum 4 digit counter, since the last element to store '\0' from sprintf
+    char counter_string[5];
+    uint8_t digits_counter = snprintf(counter_string,5,"%d",counter);
+    for(int i = 0;i<digits_counter;i++){
+      ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 40 + i*18, SSD1306_LCDHEIGHT / 2 - 8, counter_string[i], WHITE, BLACK, 3);
+    }
+    
+    ssd1306_display();
+}
+
+static void display_counting_done(){
+    ssd1306_clear_display();
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58, SSD1306_LCDHEIGHT / 2 - 8, 'D', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58 + 18, SSD1306_LCDHEIGHT / 2 - 8, 'O', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58 + 36, SSD1306_LCDHEIGHT / 2 - 8, 'N', WHITE, BLACK, 3);
+    ssd1306_draw_char(SSD1306_LCDWIDTH / 2 - 58 + 54, SSD1306_LCDHEIGHT / 2 - 8, 'E', WHITE, BLACK, 3);
+    ssd1306_display();
+}
+
+static void update_display_state(display_state_type_t display_state){
+
+static void read_from_flash(){
+  
+}
+
+static void write_to_flash(){
+  nrf_fstorage_write()
+}
 
 int main(void)
 {
     ret_code_t err_code;
 
-
     utils_setup();
-    button_init();
-    nrf_gpio_cfg_output(led);
-
     
-    printf("Initialization...!");
+    printf("Initialization...!\n");
+    NRF_LOG_INFO("Initialization...!");
+    NRF_LOG_FLUSH();
+    err_code = i2c_init();
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("I2C initialized");
+    NRF_LOG_FLUSH();
     //nrf_gpio_pin_set(led);
-    nrf_delay_ms(1000);
-    err_code = adafruit_pn532_init(false);
+    //nrf_delay_ms(1000);
+    err_code = pn532_init();
     //nrf_gpio_pin_clear(led);
-    nrf_delay_ms(1000);
+    //nrf_delay_ms(1000);
     APP_ERROR_CHECK(err_code);
 
-    NRF_LOG_INFO("NFC Adafruit tag reader example started.");
+    NRF_LOG_INFO("PN532 Initialized");
+    NRF_LOG_FLUSH();
 
+    printf("SSD1306 Initializing!\n");
+    ssd1306_init_i2c_2(&m_twi_master);
+    printf("SSD1306 Initialized\n");
+    ssd1306_begin(SSD1306_SWITCHCAPVCC, SSD1306_I2C_ADDRESS, false);
+    printf("Display Idle SSD1306\n");
+    update_display_state(DISPLAY_IDLE);
     for (;;)
     {
         //nrf_gpio_pin_set(led);
@@ -556,6 +774,7 @@ int main(void)
         {
             case NRF_SUCCESS:
                 printf("Found\n");
+                NRF_LOG_INFO("Found");
                 //nrf_gpio_pin_toggle(led);
                 after_found();
                 after_read_delay();
@@ -571,14 +790,12 @@ int main(void)
             case NRF_ERROR_NOT_FOUND:
                 NRF_LOG_INFO("No Tag found.");
                 printf("No Tag found.\n");
-                //nrf_gpio_pin_toggle(led);
                 // No delay here as we want to search for another tag immediately.
                 break;
 
             case NRF_ERROR_NOT_SUPPORTED:
                 NRF_LOG_INFO("Tag not supported.");
                 printf("Tag not supported.\n");
-                //nrf_gpio_pin_toggle(led);
                 after_read_delay();
                 break;
 

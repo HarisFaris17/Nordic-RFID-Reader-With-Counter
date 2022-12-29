@@ -77,6 +77,40 @@
 // </h> 
 //==========================================================
 
+// <h> User Defined
+
+#ifndef TWI_INSTANCE
+#define TWI_INSTANCE 0
+#endif
+
+#ifndef  SCL_I2C_PIN
+#define SCL_I2C_PIN 22
+#endif
+
+#ifndef  SDA_I2C_PIN
+#define SDA_I2C_PIN 24
+#endif
+
+#ifndef  IRQ_I2C_PIN
+#define IRQ_I2C_PIN 13
+#endif
+
+#ifndef  RESET_I2C_PIN
+#define RESET_I2C_PIN 12
+#endif
+
+#ifndef OLED_ADDRESS
+#define OLED_ADDRESS 0x3c
+#endif
+
+#ifndef NRF_FSTORAGE_ENABLED
+#define NRF_FSTORAGE_ENABLED 1
+#endif
+
+#ifndef NRF_FSTORAGE_PARAM_CHECK_DISABLED
+#define NRF_FSTORAGE_PARAM_CHECK_DISABLED 0
+#endif
+
 // <h> Third Parties 
 
 //==========================================================
@@ -87,12 +121,12 @@
 #endif
 // <o> PN532_IRQ  
 #ifndef PN532_IRQ
-#define PN532_IRQ 13
+#define PN532_IRQ IRQ_I2C_PIN
 #endif
 
 // <o> PN532_RESET  
 #ifndef PN532_RESET
-#define PN532_RESET 12
+#define PN532_RESET RESET_I2C_PIN
 #endif
 
 // <o> PN532_CONFIG_SCL  - Pin number
@@ -1399,7 +1433,7 @@
 #endif
 // <o> NRF_LOG_BACKEND_UART_TX_PIN - UART TX pin 
 #ifndef NRF_LOG_BACKEND_UART_TX_PIN
-#define NRF_LOG_BACKEND_UART_TX_PIN 6
+#define NRF_LOG_BACKEND_UART_TX_PIN 29
 #endif
 
 // <o> NRF_LOG_BACKEND_UART_BAUDRATE  - Default Baudrate

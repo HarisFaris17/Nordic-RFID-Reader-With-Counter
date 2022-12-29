@@ -1,5 +1,5 @@
 Output/Release/Obj/adafruit_tag_reader_pca10040/nrf_balloc.o: \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\components\libraries\balloc\nrf_balloc.c \
+ C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\examples\My\ Project\adafruit_tag_reader\pca10040\blank\ses\nrf_balloc.c \
  ../../../../../../components/libraries/util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 7.10/include/__SEGGER_RTL.h \
@@ -32,7 +32,7 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/nrf_balloc.o: \
  ../../../../../../components/libraries/util/nrf_assert.h \
  ../../../../../../components/libraries/experimental_section_vars/nrf_section.h \
  ../../../../../../components/libraries/util/nordic_common.h \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\components\libraries\balloc\nrf_balloc.h \
+ ../../../../../../components/libraries/balloc/nrf_balloc.h \
  ../../../../../../components/libraries/util/sdk_errors.h \
  ../../../../../../components/libraries/util/app_util_platform.h \
  ../../../../../../components/libraries/util/app_error.h \

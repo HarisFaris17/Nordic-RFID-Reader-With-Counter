@@ -1,5 +1,5 @@
 Output/Release/Obj/adafruit_tag_reader_pca10040/drv_rtc.o: \
- C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\components\libraries\timer\drv_rtc.c \
+ C:\Users\haris\Downloads\DeviceDownload\nRF5_SDK_17.1.0_ddde560\nRF5_SDK_17.1.0_ddde560\examples\My\ Project\adafruit_tag_reader\pca10040\blank\ses\drv_rtc.c \
  ../../../../../../modules/nrfx/nrfx.h \
  ../../../../../../integration/nrfx/nrfx_config.h ../config/sdk_config.h \
  ../../../../../../modules/nrfx/drivers/nrfx_common.h \
