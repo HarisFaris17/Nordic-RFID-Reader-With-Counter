@@ -116,6 +116,9 @@
                                                                                              . After writing in the last address of the specifed page, the pointer will be rolled over to the first
                                                                                              address in the page
                                                                                           */
+#define INDEX_OF_COUNTER                    0
+#define INDEX_OF_LENGTH_NFC                 4
+#define INDEX_OF_NFC_ID                     5
 
 typedef struct{
     bool active;
@@ -160,14 +163,19 @@ static void update_display_state(display_state_type_t display_state);
 
 static void display_counting_done();
 
+static void save_eeprom();
+
+static void read_eeprom();
+
 //static void fstorage_handler(nrf_fstorage_evt_t * p_evt);
 
+// @brief current display state
 static display_state_type_t m_display_state;
 
-// object to store the received nfc
+// @brief object to store the received nfc
 nfc_a_tag_info m_nfc_tag;
 
-// object to store current active nfc
+// @brief object to store current active nfc
 active_nfc m_active_nfc;
 
 // @brief object of twi
@@ -175,6 +183,9 @@ static nrf_drv_twi_t m_twi_master = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
 
 // @brief object timer
 APP_TIMER_DEF(m_timer);
+
+// @brief data to store/send data from/to EEPROM
+static eeprom_data m_data;
 
 
 // object fstorage to store the counting and 
@@ -564,9 +575,12 @@ void after_read_delay(void)
 static void button_event_handler(uint8_t pin_no, uint8_t action){
   ret_code_t err;
   printf("Button event handler called with pin : %d\n",pin_no);
-  if(action==APP_BUTTON_PUSH){
-      if(m_active_nfc.active){
-        switch(pin_no){
+  if (action==APP_BUTTON_PUSH)
+  {
+      if (m_active_nfc.active)
+      {
+        switch(pin_no)
+        {
           case BUTTON_COUNTER_UP:
             m_active_nfc.counter++;
             printf("Counter up\n");
@@ -576,31 +590,35 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
 
           case BUTTON_COUNTER_DOWN:
             printf("Counter down\n");
-            if(m_active_nfc.counter<=0){
-              printf("Current counter is 0 or less\n");
-            }else{
-              (m_active_nfc).counter--;
-              printf("Current counter : %d",m_active_nfc.counter);
-              update_display_counter();
+            if(m_active_nfc.counter<=0)
+            {
+                printf("Current counter is 0 or less\n");
+            }
+
+            else
+            {
+                (m_active_nfc).counter--;
+                printf("Current counter : %d",m_active_nfc.counter);
+                update_display_counter();
             }
             break;
 
           case BUTTON_DONE:
-            printf("Counting done!\n");
-            m_active_nfc.active=false;
-            m_active_nfc.active=0;
-            m_active_nfc.counter=0;
-            m_active_nfc.nfc_id_len=0;
-            for(int i=0;i<MAX_NFC_A_ID_LEN;i++){
-              m_active_nfc.nfc_id[i] = 0;
-            }
-            nrf_gpio_pin_clear(led);
-            update_display_state(DISPLAY_COUNTING_DONE);
-            err = app_timer_start(m_timer,
-                                  APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),
-                                  &m_display_state);
-            APP_ERROR_CHECK(err);
-            break;
+              printf("Counting done!\n");
+              m_active_nfc.active=false;
+              m_active_nfc.active=0;
+              m_active_nfc.counter=0;
+              m_active_nfc.nfc_id_len=0;
+              for(int i=0;i<MAX_NFC_A_ID_LEN;i++){
+                m_active_nfc.nfc_id[i] = 0;
+              }
+              nrf_gpio_pin_clear(led);
+              update_display_state(DISPLAY_COUNTING_DONE);
+              err = app_timer_start(m_timer,
+                                    APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),
+                                    &m_display_state);
+              APP_ERROR_CHECK(err);
+              break;
         }
         
       }
@@ -646,21 +664,24 @@ static void button_init(){
 }
 
 static void after_found(){
-  if(m_active_nfc.active){
-    printf("There is active NFC : ");
-    for(int i=0;i<m_active_nfc.nfc_id_len;i++){
-      printf("0x%X ",m_active_nfc.nfc_id[i]);
-    }
-    printf("\r\n");
+  if(m_active_nfc.active)
+  {
+      printf("There is active NFC : ");
+      for(int i=0;i<m_active_nfc.nfc_id_len;i++)
+      {
+          printf("0x%X ",m_active_nfc.nfc_id[i]);
+      }
+      printf("\n\r");
   }
 
   else{
     m_active_nfc.active = true;
     m_active_nfc.counter = 0;
     m_active_nfc.nfc_id_len = m_nfc_tag.nfc_id_len;
-    memset(m_active_nfc.nfc_id,0,MAX_NFC_A_ID_LEN);
-    for(int i = 0;i<m_nfc_tag.nfc_id_len;i++){
-      m_active_nfc.nfc_id[i] = m_nfc_tag.nfc_id[i];
+    memset(m_active_nfc.nfc_id, 0, MAX_NFC_A_ID_LEN);
+    for(int i = 0;  i<m_nfc_tag.nfc_id_len; i++)
+    {
+        m_active_nfc.nfc_id[i] = m_nfc_tag.nfc_id[i];
     }
     printf("NFC Activated\n");
 
@@ -668,10 +689,17 @@ static void after_found(){
     for(int i=0;i<m_active_nfc.nfc_id_len;i++){
       printf("0x%X ",m_active_nfc.nfc_id[i]);
     }
-    printf("\r\n");
+    printf("\n\r");
+
     nrf_gpio_pin_set(led);
     update_display_state(DISPLAY_START);
     app_timer_start(m_timer,APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),&m_display_state);
+
+    save_eeprom();
+
+    nrf_delay_ms(1000);
+
+    read_eeprom();
   }
 }
 
@@ -760,6 +788,38 @@ static void update_display_state(display_state_type_t display_state){
   }
 }
 
+static void test(){
+  ret_code_t err;
+
+  memset(m_data.p_data, 0, MAX_BYTE_PER_TRX);
+
+  printf("Before receiving any data!\n");
+  printf("Data : ");
+  for (int i = 0; i<5; i++)
+  {
+      printf("0x%X ", m_data.p_data[i]);
+  }
+  printf("\n\r");
+  printf("Reset the data contained in buffer\n");
+  memset(m_data.p_data, 0, MAX_BYTE_PER_TRX);
+
+  printf("Reseted buffer : ");
+  for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
+  {
+      printf("0x%X ", m_data.p_data[i]);
+  }
+  printf("\n\r");
+
+  err = eeprom_read_data(&m_data, START_ADDR_DATA, 5);
+  APP_ERROR_CHECK(err);
+  printf("Receive data success!\n");
+  printf("Data : ");
+  for (int i = 0; i<5; i++)
+  {
+      printf("0x%X ", m_data.p_data[i]);
+  }
+  printf("\n\r");
+}
 //static void read_from_flash(){
   
 //}
@@ -770,6 +830,51 @@ static void update_display_state(display_state_type_t display_state){
 //  static uint8_t data_to_store[];
 //  nrf_fstorage_write(&m_fstorage, STORE_VAR_START_ADDR_FLASH, )
 //}
+
+static void save_eeprom()
+{
+    ret_code_t err;
+    // the counter will be stored big endianly
+    ASSIGN_32BIT_TO_8BIT_ARRAY(m_active_nfc.counter, (&(m_data.p_data[INDEX_OF_COUNTER])));
+    m_data.p_data[INDEX_OF_LENGTH_NFC] = m_active_nfc.nfc_id_len;
+    memcpy(&(m_data.p_data[INDEX_OF_NFC_ID]), m_active_nfc.nfc_id, m_active_nfc.nfc_id_len);
+    uint8_t total_data_length = INDEX_OF_NFC_ID + m_active_nfc.nfc_id_len;
+    m_data.length = total_data_length;
+    
+    
+    err = eeprom_write_data(&m_data, START_ADDR_DATA);
+    APP_ERROR_CHECK(err);
+
+    printf("Saved data to EEPROM : ");
+    for(int i = 0; i<total_data_length; i++)
+    {
+        printf("0x%X ", m_data.p_data[i]);
+    }
+    printf("\n\r");
+
+}
+
+static void read_eeprom()
+{
+    ret_code_t err;
+    memset(m_data.p_data, 0, MAX_BYTE_PER_TRX);
+    printf("Reseted buffer : ");
+    for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
+    {
+        printf("0x%X ", m_data.p_data[i]);
+    }
+    printf("\n\r");
+
+    err = eeprom_read_data(&m_data, START_ADDR_DATA, MAX_BYTE_PER_TRX);
+    APP_ERROR_CHECK(err);
+
+    printf("Received buffer : ");
+    for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
+    {
+        printf("0x%X ", m_data.p_data[i]);
+    }
+    printf("\n\r");
+}
 
 int main(void)
 {
@@ -806,15 +911,24 @@ int main(void)
     APP_ERROR_CHECK(err_code);
     printf("EEPROM initialization success\n");
 
-    eeprom_data data;
-    int p[5] = {0x68, 0x61, 0x72, 0x69, 0x73};
-    memcpy(data.p_data, p, 5);
-    data.length = 5;
+    //eeprom_data data;
+    uint8_t p[5] = {0x68, 0x61, 0x72, 0x69, 0x73};
+    memcpy(m_data.p_data, p, 5);
+    m_data.length = 5;
 
+    //===============test===============
     printf("Writing test data to EEPROM!\n");
-    err_code = eeprom_write_data(&data, START_ADDR_DATA);
+    err_code = eeprom_write_data(&m_data, START_ADDR_DATA);
     APP_ERROR_CHECK(err_code);
     printf("Writing test data to EEPROM success\n");
+
+    printf("Data : ");
+    for (int i = 0; i<5; i++)
+    {
+        printf("0x%X ", m_data.p_data[i]);
+    }
+    printf("\n\r");
+    //==================================
 
     for (;;)
     {
@@ -826,7 +940,9 @@ int main(void)
                 printf("Found\n");
                 NRF_LOG_INFO("Found");
                 //nrf_gpio_pin_toggle(led);
+                test();
                 after_found();
+                
                 after_read_delay();
                 
                 break;
