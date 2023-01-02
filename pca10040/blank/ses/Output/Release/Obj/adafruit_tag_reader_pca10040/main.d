@@ -93,6 +93,4 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/main.o: \
  ../../../../../../external/oled/ssd1306_oled.h \
  ../../../../../../components/libraries/timer/app_timer.h \
  ../../../../../../components/libraries/sortlist/nrf_sortlist.h \
- ../../../../../../components/libraries/fstorage/nrf_fstorage.h \
- ../../../../../../components/libraries/fstorage/nrf_fstorage_nvmc.h \
- ../../../../../../components/libraries/fstorage/nrf_fstorage.h
+ ../../../../../../components/libraries/eeprom/EEPROM.h

@@ -77,8 +77,10 @@
 #include "app_button.h"
 #include "app_timer.h"
 
-#include "nrf_fstorage.h"
-#include "nrf_fstorage_nvmc.h"
+//#include "nrf_fstorage.h"
+//#include "nrf_fstorage_nvmc.h"
+
+#include "EEPROM.h"
 
 #define SEL_RES_CASCADE_BIT_NUM            3                                              /// Number of Cascade bit within SEL_RES byte.
 #define SEL_RES_TAG_PLATFORM_MASK          0x60                                           /// Mask of Tag Platform bit group within SEL_RES byte.
@@ -101,13 +103,19 @@
 
 #define DELAY_CHANGE_STATE_DISPLAY          2000                                          /// delay state change from START to COUNTING or from COUNTING DONE to IDLE
 
-#define STORE_VAR_START_ADDR_FLASH          0x3e000                                       // starting address to store data in flash
-#define STORE_VAR_END_ADDR_FLASH            0x3ffff                                       // end address (exclusive) to store data in flash
-#define OFFSET_ADDR_COUNTER                 0x0                                           // offset address reference to STORE_VAR_START_ADDR_FLASH in flash to store the counter 
-#define OFFSET_ADDR_LENGTH_RFID_ID          (OFFSET_ADDR_COUNTER+4)                       // offset in flash reference to OFFSET_ADDR_COUNTER (note : the counter is 4-byte, i.e. uint32_t)
-#define OFFSET_ADDR_RFID_ID                 (OFFSET_ADDR_LENGTH_RFID_ID+4)
-#define 
-
+#define STORE_VAR_START_ADDR_FLASH          0x3e000                                       /// starting address to store data in flash
+#define STORE_VAR_END_ADDR_FLASH            0x3ffff                                       /// end address (exclusive) to store data in flash
+#define OFFSET_ADDR_COUNTER                 0x0                                           /// offset address of counter reference to STORE_VAR_START_ADDR_FLASH in flash to store the counter 
+#define OFFSET_ADDR_LENGTH_RFID_ID          (OFFSET_ADDR_COUNTER+4)                       /// offset address of length of RFID id in flash reference to OFFSET_ADDR_COUNTER (note : the counter is 4-byte, i.e. uint32_t)
+#define OFFSET_ADDR_RFID_ID                 (OFFSET_ADDR_LENGTH_RFID_ID+4)                /* offset address of RFID id in flash reference OFFSET_ADDR_LENGTH_RFID_ID 
+                                                                                          (note : one can't write only 1 byte to the flash, the flash only allow 
+                                                                                          at least a page of bytes, our hypothesis one page is 4 bytes @ ref to
+                                                                                          nrf_storage_nvmc*/
+#define START_ADDR_DATA                     0x0CC0                                        /* The 5 bits LSB represents the address in the page specified for the 12 bits upper the 5 bits LSB.
+                                                                                             this 5 bits LSB will be incremented internally by eeprom after writing a byte (the pointer incremented)
+                                                                                             . After writing in the last address of the specifed page, the pointer will be rolled over to the first
+                                                                                             address in the page
+                                                                                          */
 
 typedef struct{
     bool active;
@@ -152,7 +160,7 @@ static void update_display_state(display_state_type_t display_state);
 
 static void display_counting_done();
 
-static void fstorage_handler(nrf_fstorage_evt_t * p_evt);
+//static void fstorage_handler(nrf_fstorage_evt_t * p_evt);
 
 static display_state_type_t m_display_state;
 
@@ -162,42 +170,43 @@ nfc_a_tag_info m_nfc_tag;
 // object to store current active nfc
 active_nfc m_active_nfc;
 
-// object of twi
+// @brief object of twi
 static nrf_drv_twi_t m_twi_master = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
 
-// object timer
+// @brief object timer
 APP_TIMER_DEF(m_timer);
 
-// object fstorage to store the counting and 
-NRF_FSTORAGE_DEF(nrf_fstorage_t m_fstorage) = {
-  // the start address in flash to store bytes
-  .start_addr = 0x3e000,
-  // the end address (the end address is exclusive) in flash to store bytes.
-  /** the total bytes that can be stored between start_addr and end_addr is 
-  *end_addr-start_addr = 0x3ffff - 0x3e000 = 0x1fff (it is more than enough to store just RFID id, 
-  the length of RFID id, and counter)
-  **/
-  .end_addr   = 0x3ffff,
-  .evt_handler= fstorage_handler,
-};
 
-static void fstorage_handler(nrf_fstorage_evt_t * p_evt){
-    if(p_evt->result != NRF_SUCCESS){
-      printf("The operation to fstorage failed!\n");
-      return;
-    }
-    else{
-      if(p_evt->id == NRF_FSTORAGE_EVT_WRITE_RESULT){
-        printf("Writing operation on fstorage succedd!\n");
-      }
-      else if(p_evt->id == NRF_FSTORAGE_EVT_READ_RESULT){
-        printf("Reading operation on fstorage succedd!\n");
-      }
-      else if(p_evt->id == NRF_FSTORAGE_EVT_ERASE_RESULT){
-        printf("Erase operation on fstorage succedd!\n");
-      }
-    }
-}
+// object fstorage to store the counting and 
+//NRF_FSTORAGE_DEF(nrf_fstorage_t m_fstorage) = {
+//  // the start address in flash to store bytes
+//  .start_addr = 0x3e000,
+//  // the end address (the end address is exclusive) in flash to store bytes.
+//  /** the total bytes that can be stored between start_addr and end_addr is 
+//  *end_addr-start_addr = 0x3ffff - 0x3e000 = 0x1fff (it is more than enough to store just RFID id, 
+//  the length of RFID id, and counter)
+//  **/
+//  .end_addr   = 0x3ffff,
+//  .evt_handler= fstorage_handler,
+//};
+
+//static void fstorage_handler(nrf_fstorage_evt_t * p_evt){
+//    if(p_evt->result != NRF_SUCCESS){
+//      printf("The operation to fstorage failed!\n");
+//      return;
+//    }
+//    else{
+//      if(p_evt->id == NRF_FSTORAGE_EVT_WRITE_RESULT){
+//        printf("Writing operation on fstorage succedd!\n");
+//      }
+//      else if(p_evt->id == NRF_FSTORAGE_EVT_READ_RESULT){
+//        printf("Reading operation on fstorage succedd!\n");
+//      }
+//      else if(p_evt->id == NRF_FSTORAGE_EVT_ERASE_RESULT){
+//        printf("Erase operation on fstorage succedd!\n");
+//      }
+//    }
+//}
 
 /**
  * @brief Macro for handling errors returne by Type 4 Tag modules.
@@ -230,8 +239,8 @@ void utils_setup(void)
     err = app_timer_create(&m_timer,APP_TIMER_MODE_SINGLE_SHOT,timer_handler);
     APP_ERROR_CHECK(err);
 
-    err = nrf_fstorage_init(&m_fstorage,&nrf_fstorage_nvmc,NULL);
-    APP_ERROR_CHECK(err);
+    //err = nrf_fstorage_init(&m_fstorage,&nrf_fstorage_nvmc,NULL);
+    //APP_ERROR_CHECK(err);
 }
 
 
@@ -728,14 +737,39 @@ static void display_counting_done(){
 }
 
 static void update_display_state(display_state_type_t display_state){
+  if  (display_state == DISPLAY_START)
+  {
+      display_start();
+      m_display_state = DISPLAY_START;
+  }
+  else if(display_state == DISPLAY_COUNTING_DONE)
+  {
+      display_counting_done();
+      m_display_state = DISPLAY_COUNTING_DONE;
+  }
+  else if(display_state == DISPLAY_IDLE)
+  {
+      display_idle();
+      m_display_state == DISPLAY_IDLE;
+  }
 
-static void read_from_flash(){
+  else if (display_state == DISPLAY_COUNTING)
+  {
+      update_display_counter();
+      m_display_state = DISPLAY_COUNTING;
+  }
+}
+
+//static void read_from_flash(){
   
-}
+//}
 
-static void write_to_flash(){
-  nrf_fstorage_write()
-}
+//static void write_to_flash(){
+//                              // size counter     size of length RFID id        RFID id   
+//  static uint8_t size_to_store = sizeof(uint32_t)+sizeof(uint32_t)+MAX_NFC_A_ID_LEN;
+//  static uint8_t data_to_store[];
+//  nrf_fstorage_write(&m_fstorage, STORE_VAR_START_ADDR_FLASH, )
+//}
 
 int main(void)
 {
@@ -766,6 +800,22 @@ int main(void)
     ssd1306_begin(SSD1306_SWITCHCAPVCC, SSD1306_I2C_ADDRESS, false);
     printf("Display Idle SSD1306\n");
     update_display_state(DISPLAY_IDLE);
+
+    printf("Initializing EEPROM!\n");
+    err_code = eeprom_init(&m_twi_master);
+    APP_ERROR_CHECK(err_code);
+    printf("EEPROM initialization success\n");
+
+    eeprom_data data;
+    int p[5] = {0x68, 0x61, 0x72, 0x69, 0x73};
+    memcpy(data.p_data, p, 5);
+    data.length = 5;
+
+    printf("Writing test data to EEPROM!\n");
+    err_code = eeprom_write_data(&data, START_ADDR_DATA);
+    APP_ERROR_CHECK(err_code);
+    printf("Writing test data to EEPROM success\n");
+
     for (;;)
     {
         //nrf_gpio_pin_set(led);
