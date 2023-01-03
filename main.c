@@ -586,6 +586,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
             printf("Counter up\n");
             printf("Current counter : %d\n",m_active_nfc.counter);
             update_display_counter();
+            save_eeprom();
             break;
 
           case BUTTON_COUNTER_DOWN:
@@ -600,6 +601,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
                 (m_active_nfc).counter--;
                 printf("Current counter : %d",m_active_nfc.counter);
                 update_display_counter();
+                save_eeprom();
             }
             break;
 
@@ -614,6 +616,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
               }
               nrf_gpio_pin_clear(led);
               update_display_state(DISPLAY_COUNTING_DONE);
+              save_eeprom();
               err = app_timer_start(m_timer,
                                     APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),
                                     &m_display_state);
@@ -874,6 +877,37 @@ static void read_eeprom()
         printf("0x%X ", m_data.p_data[i]);
     }
     printf("\n\r");
+
+    
+}
+
+static void startup_eeprom(){
+    printf("Retrieve data from EEPROM when starting up\n");
+    // the data retrieved from eeprom will be saved in m_data
+    read_eeprom();
+    
+    if (m_data.p_data[INDEX_OF_LENGTH_NFC] == 0)
+    {
+        printf("No active data previouslly\n");
+        return;
+    }
+    else
+    {
+        printf("Assign m_data to m_active_t\n");
+        m_active_nfc.active = true;
+        m_active_nfc.counter = CONVERT_8BIT_ARRAY_TO_32BIT(m_data.p_data);
+        m_active_nfc.nfc_id_len = m_data.p_data[INDEX_OF_LENGTH_NFC];
+        memcpy(m_active_nfc.nfc_id, &(m_data.p_data[INDEX_OF_NFC_ID]), m_active_nfc.nfc_id_len);
+        printf("Retrieved active data : \n");
+        printf("Counter : %d\n",  m_active_nfc.counter);
+        printf("Length of NFC ID : %d\n", m_active_nfc.nfc_id_len);
+        printf("NFC ID : ");
+        for(int i = 0; i<m_active_nfc.nfc_id_len; i++)
+        {
+            printf("0x%X ",m_active_nfc.nfc_id[i]);
+        }
+        printf("\n\r");
+    }
 }
 
 int main(void)
@@ -885,17 +919,14 @@ int main(void)
     printf("Initialization...!\n");
     NRF_LOG_INFO("Initialization...!");
     NRF_LOG_FLUSH();
+
     err_code = i2c_init();
     APP_ERROR_CHECK(err_code);
     NRF_LOG_INFO("I2C initialized");
     NRF_LOG_FLUSH();
-    //nrf_gpio_pin_set(led);
-    //nrf_delay_ms(1000);
-    err_code = pn532_init();
-    //nrf_gpio_pin_clear(led);
-    //nrf_delay_ms(1000);
-    APP_ERROR_CHECK(err_code);
 
+    err_code = pn532_init();
+    APP_ERROR_CHECK(err_code);
     NRF_LOG_INFO("PN532 Initialized");
     NRF_LOG_FLUSH();
 
@@ -912,24 +943,24 @@ int main(void)
     printf("EEPROM initialization success\n");
 
     //eeprom_data data;
-    uint8_t p[5] = {0x68, 0x61, 0x72, 0x69, 0x73};
-    memcpy(m_data.p_data, p, 5);
-    m_data.length = 5;
+    //uint8_t p[5] = {0x68, 0x61, 0x72, 0x69, 0x73};
+    //memcpy(m_data.p_data, p, 5);
+    //m_data.length = 5;
 
-    //===============test===============
-    printf("Writing test data to EEPROM!\n");
-    err_code = eeprom_write_data(&m_data, START_ADDR_DATA);
-    APP_ERROR_CHECK(err_code);
-    printf("Writing test data to EEPROM success\n");
+    ////===============test===============
+    //printf("Writing test data to EEPROM!\n");
+    //err_code = eeprom_write_data(&m_data, START_ADDR_DATA);
+    //APP_ERROR_CHECK(err_code);
+    //printf("Writing test data to EEPROM success\n");
 
-    printf("Data : ");
-    for (int i = 0; i<5; i++)
-    {
-        printf("0x%X ", m_data.p_data[i]);
-    }
-    printf("\n\r");
-    //==================================
-
+    //printf("Data : ");
+    //for (int i = 0; i<5; i++)
+    //{
+    //    printf("0x%X ", m_data.p_data[i]);
+    //}
+    //printf("\n\r");
+    ////==================================
+    startup_eeprom();
     for (;;)
     {
         //nrf_gpio_pin_set(led);
@@ -940,7 +971,7 @@ int main(void)
                 printf("Found\n");
                 NRF_LOG_INFO("Found");
                 //nrf_gpio_pin_toggle(led);
-                test();
+                //test();
                 after_found();
                 
                 after_read_delay();
