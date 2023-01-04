@@ -80,7 +80,9 @@
 //#include "nrf_fstorage.h"
 //#include "nrf_fstorage_nvmc.h"
 
-#include "EEPROM.h"
+#include "eeprom.h"
+
+#include "app_eeprom.h"
 
 #define SEL_RES_CASCADE_BIT_NUM            3                                              /// Number of Cascade bit within SEL_RES byte.
 #define SEL_RES_TAG_PLATFORM_MASK          0x60                                           /// Mask of Tag Platform bit group within SEL_RES byte.
@@ -119,6 +121,9 @@
 #define INDEX_OF_COUNTER                    0
 #define INDEX_OF_LENGTH_NFC                 4
 #define INDEX_OF_NFC_ID                     5
+
+#define MAX_SPK_COUNT_PER_NFC               5
+#define MAX_NFC_ID_COUNT                    5
 
 typedef struct{
     bool active;
@@ -791,48 +796,6 @@ static void update_display_state(display_state_type_t display_state){
   }
 }
 
-static void test(){
-  ret_code_t err;
-
-  memset(m_data.p_data, 0, MAX_BYTE_PER_TRX);
-
-  printf("Before receiving any data!\n");
-  printf("Data : ");
-  for (int i = 0; i<5; i++)
-  {
-      printf("0x%X ", m_data.p_data[i]);
-  }
-  printf("\n\r");
-  printf("Reset the data contained in buffer\n");
-  memset(m_data.p_data, 0, MAX_BYTE_PER_TRX);
-
-  printf("Reseted buffer : ");
-  for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
-  {
-      printf("0x%X ", m_data.p_data[i]);
-  }
-  printf("\n\r");
-
-  err = eeprom_read_data(&m_data, START_ADDR_DATA, 5);
-  APP_ERROR_CHECK(err);
-  printf("Receive data success!\n");
-  printf("Data : ");
-  for (int i = 0; i<5; i++)
-  {
-      printf("0x%X ", m_data.p_data[i]);
-  }
-  printf("\n\r");
-}
-//static void read_from_flash(){
-  
-//}
-
-//static void write_to_flash(){
-//                              // size counter     size of length RFID id        RFID id   
-//  static uint8_t size_to_store = sizeof(uint32_t)+sizeof(uint32_t)+MAX_NFC_A_ID_LEN;
-//  static uint8_t data_to_store[];
-//  nrf_fstorage_write(&m_fstorage, STORE_VAR_START_ADDR_FLASH, )
-//}
 
 static void save_eeprom()
 {
@@ -907,6 +870,8 @@ static void startup_eeprom(){
             printf("0x%X ",m_active_nfc.nfc_id[i]);
         }
         printf("\n\r");
+
+        update_display_state(DISPLAY_COUNTING);
     }
 }
 
@@ -942,36 +907,15 @@ int main(void)
     APP_ERROR_CHECK(err_code);
     printf("EEPROM initialization success\n");
 
-    //eeprom_data data;
-    //uint8_t p[5] = {0x68, 0x61, 0x72, 0x69, 0x73};
-    //memcpy(m_data.p_data, p, 5);
-    //m_data.length = 5;
-
-    ////===============test===============
-    //printf("Writing test data to EEPROM!\n");
-    //err_code = eeprom_write_data(&m_data, START_ADDR_DATA);
-    //APP_ERROR_CHECK(err_code);
-    //printf("Writing test data to EEPROM success\n");
-
-    //printf("Data : ");
-    //for (int i = 0; i<5; i++)
-    //{
-    //    printf("0x%X ", m_data.p_data[i]);
-    //}
-    //printf("\n\r");
-    ////==================================
     startup_eeprom();
     for (;;)
     {
-        //nrf_gpio_pin_set(led);
         err_code = tag_detect_and_read();
         switch (err_code)
         {
             case NRF_SUCCESS:
                 printf("Found\n");
                 NRF_LOG_INFO("Found");
-                //nrf_gpio_pin_toggle(led);
-                //test();
                 after_found();
                 
                 after_read_delay();
