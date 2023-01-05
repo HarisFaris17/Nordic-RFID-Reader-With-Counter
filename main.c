@@ -53,6 +53,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "main.h"
+
 #include "app_error.h"
 #include "bsp.h"
 #include "hardfault.h"
@@ -82,7 +84,7 @@
 
 #include "eeprom.h"
 
-#include "app_eeprom.h"
+#include "nfc_spk_eeprom.h"
 
 #define SEL_RES_CASCADE_BIT_NUM            3                                              /// Number of Cascade bit within SEL_RES byte.
 #define SEL_RES_TAG_PLATFORM_MASK          0x60                                           /// Mask of Tag Platform bit group within SEL_RES byte.
@@ -113,11 +115,7 @@
                                                                                           (note : one can't write only 1 byte to the flash, the flash only allow 
                                                                                           at least a page of bytes, our hypothesis one page is 4 bytes @ ref to
                                                                                           nrf_storage_nvmc*/
-#define START_ADDR_DATA                     0x0CC0                                        /* The 5 bits LSB represents the address in the page specified for the 12 bits upper the 5 bits LSB.
-                                                                                             this 5 bits LSB will be incremented internally by eeprom after writing a byte (the pointer incremented)
-                                                                                             . After writing in the last address of the specifed page, the pointer will be rolled over to the first
-                                                                                             address in the page
-                                                                                          */
+
 #define INDEX_OF_COUNTER                    0
 #define INDEX_OF_LENGTH_NFC                 4
 #define INDEX_OF_NFC_ID                     5
