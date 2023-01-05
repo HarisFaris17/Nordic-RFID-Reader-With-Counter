@@ -1,6 +1,7 @@
 #include "nfc_spk_eeprom.h"
 #include "eeprom.h"
 #include "nrf_log.h"
+#include "nrf_delay.h"
 
 // an SPK page contains 2 byte SPK Id plus the counter that attached to it
 // consider 1 page of NFC infomation (NFC ID length, NFC ID, and SPK count) plus maximum number of SPK page per NFC as complete set
@@ -9,6 +10,9 @@
     with SPK
 */
 
+#define     TOTAL_BYTES_SPK                               (sizeof(spk_id_t))
+#define     TOTAL_BYTES_COUNTER                           (sizeof(counter_t))
+#define     TOTAL_BYTES_SPK_WITH_COUNTER                  (TOTAL_BYTES_SPK+TOTAL_BYTES_COUNTER)
 
 //#define     MAX_SIZE_LIST_SPK_WITH_COUNTER                (MAX_SPK_COUNT_PER_NFC*sizeof(spk_t))
 #define     ADDR_COUNT_NFC_LIST_WITH_INDEXES              START_ADDR_DATA                          /* this is the first page for comprehensive
@@ -32,7 +36,9 @@
 //#define     OFFSET_INDEXES_SPK_PER_NFC                    (OFFSET_COUNT_SPK_PER_NFC+1)
 
 #define     OFFSET_SPK_ID                                 0
-#define     OFFSET_COUNTER                                (OFFSET_SPK_ID+sizeof(spk_id_t))   
+#define     OFFSET_COUNTER                                (OFFSET_SPK_ID+TOTAL_BYTES_SPK)   
+
+#define     DELAY_AFTER_WRITE                             15
 
 
 static nfc_spk_reg_t m_reg;
@@ -66,6 +72,8 @@ static inline uint8_t nfc_spk_start_address_spk_in_complete_set(uint8_t nfc_inde
 static ret_code_t nfc_spk_eeprom_init(nrf_drv_twi_t * const p_twi_master)
 {
     ret_code_t err;
+
+    NRF_LOG_INFO("Initializing EEPROM");
     err = eeprom_init(p_twi_master);
     if (err != NRF_SUCCESS)
     {
@@ -81,6 +89,7 @@ static ret_code_t nfc_spk_eeprom_init(nrf_drv_twi_t * const p_twi_master)
         return NRF_ERROR_INVALID_ADDR;
     }
 
+    nfc_spk_reset_register();
     return NRF_SUCCESS;
 }
 
@@ -90,6 +99,7 @@ static ret_code_t nfc_spk_retrieve_comprehensive()
     //uint8_t num_of_active_nfc;
     //uint8_t active_indexes_list[MAX_NFC_COUNT];
 
+    NRF_LOG_INFO("Trying to retrieve comprehensive SPK and NFC");
     // get the number of active NFC and coresponding NFC indexes
     err = nfc_spk_retrieve_start_page(&m_reg.count_nfc_list, m_reg.index_nfc_list);
     if (err != NRF_SUCCESS) 
@@ -116,6 +126,7 @@ static ret_code_t nfc_spk_retrieve_complete_set_by_nfc_index(uint8_t nfc_index)
     ret_code_t err;
     eeprom_data data;
 
+    NRF_LOG_INFO("Trying to retrieve complete set of NFC index %d", nfc_index);
     if (nfc_index < 0 || nfc_index >= MAX_NFC_COUNT)
     {
         NRF_LOG_ERROR("The nfc_index %d is not in range of [0, MAX_NFC_COUNT) in function %s", nfc_index, __func__);
@@ -153,7 +164,8 @@ static ret_code_t nfc_spk_retrieve_spk(uint8_t nfc_index, uint8_t spk_index)
 {
     ret_code_t err;
     eeprom_data data;
-
+    
+    NRF_LOG_INFO("Trying to retrieve SPK index %d with NFC index %d", spk_index, nfc_index);
     if (nfc_index < 0 || nfc_index >= MAX_NFC_COUNT)
     {
         NRF_LOG_ERROR("The nfc_index %d is not in range of [0, MAX_NFC_COUNT) in function %s", nfc_index, __func__);
@@ -168,14 +180,14 @@ static ret_code_t nfc_spk_retrieve_spk(uint8_t nfc_index, uint8_t spk_index)
 
     err = eeprom_read_data(&data, 
                             nfc_spk_start_address_spk_in_complete_set(nfc_index, spk_index),
-                            6);
+                            TOTAL_BYTES_SPK_WITH_COUNTER);
     if (err != NRF_SUCCESS)
     {
         NRF_LOG_ERROR("Failed to retrieve SPK with index : %d in NFC index : %d, in function %s", spk_index, nfc_index, __func__);
         return err;
     }
 
-    // remember that the SPK Id stored in EEPROM is big endian, hence no need to swap the retrieved SPK Id
+    // remember that the counter and spk id stored in EEPROM is big endian, hence no need to swap the retrieved counter
     m_reg.nfc_list[nfc_index].spk_list[spk_index].spk_id  = CONVERT_8BIT_ARRAY_TO_16BIT((&(data.p_data[OFFSET_SPK_ID])));
     m_reg.nfc_list[nfc_index].spk_list[spk_index].counter = CONVERT_8BIT_ARRAY_TO_32BIT((&(data.p_data[OFFSET_COUNTER])));
     return NRF_SUCCESS;
@@ -186,15 +198,16 @@ static ret_code_t nfc_spk_retrieve_start_page(uint8_t * p_num_of_active_nfc, uin
     ret_code_t err;
     eeprom_data data;
     
+    NRF_LOG_INFO("Retrieving the first page!");
     err = eeprom_read_data(&data, ADDR_COUNT_NFC_LIST_WITH_INDEXES, 1+MAX_NFC_COUNT);
     if (err != NRF_SUCCESS)
     {
         NRF_LOG_INFO("Failed to retreive the first page of NFC SPK");
         return err;
     }
-    uint8_t p_num_of_active_nfc = data.p_data[OFFSET_COUNT_NFC_LIST];
+    *p_num_of_active_nfc = data.p_data[OFFSET_COUNT_NFC_LIST];
 
-    for (int i = 0; i<num_of_active_nfc; i++)
+    for (int i = 0; i<*p_num_of_active_nfc; i++)
     {
         p_indexes_list[i] = data.p_data[OFFSET_INDEXES_NFC_LIST+i];
     }
@@ -206,46 +219,126 @@ static ret_code_t nfc_spk_save_comprehensive()
 {
     ret_code_t err;
     
+    NRF_LOG_INFO("Trying to write to eeprom comprehensively");
+    for(int i = 0; i < m_reg.count_nfc_list; i++)
+    {
+        uint8_t index_in_nfc_list = m_reg.index_nfc_list[i];
+        err = nfc_spk_save_complete_set_by_nfc_index(index_in_nfc_list);
+        if (err != NRF_SUCCESS)
+        {
+            NRF_LOG_ERROR("Falied to write to eeprom with NFC index %d in function %s", index_in_nfc_list, __func__);
+            return err;
+        }
+    }
+    return NRF_SUCCESS;
+}
+
+static ret_code_t nfc_spk_save_complete_set_by_nfc_index(uint8_t nfc_index)
+{
+    ret_code_t err;
+    
+    NRF_LOG_INFO("Trying to write complete set of NFC index %d", nfc_index);
+    if (nfc_index < 0 || nfc_index >= MAX_NFC_COUNT)
+    {
+        NRF_LOG_ERROR("The nfc_index %d is not in range of [0, MAX_NFC_COUNT) in function %s", nfc_index, __func__);
+        return NRF_ERROR_INVALID_PARAM;
+    }
+
+    for (int i = 0; i < m_reg.nfc_list[nfc_index].count_spk_list; i++)
+    {
+        uint8_t index_in_spk_list = m_reg.nfc_list[nfc_index].index_spk_list[i];
+        err = nfc_spk_save_spk(nfc_index, index_in_spk_list);
+        if (err != NRF_SUCCESS)
+        {
+            NRF_LOG_ERROR("Failed to write to eeprom with NFC index %d in function %s", nfc_index, __func__);
+            return err;
+        }
+    }
 
     return NRF_SUCCESS;
 }
 
-static ret_code_t nfc_spk_save_spk(uint8_t * p_nfc_id, uint8_t nfc_id_len)
+static ret_code_t nfc_spk_save_spk(uint8_t nfc_index, uint8_t spk_index)
 {
     ret_code_t err;
-    
-    if (m_reg.count_nfc_list == 0)
+    eeprom_data data;
+
+    NRF_LOG_INFO("Trying to write SPK index %d with NFC index %d", spk_index, nfc_index);
+    if (nfc_index < 0 || nfc_index >= MAX_NFC_COUNT)
     {
-        NRF_LOG_ERROR("Can't save SPK, since no active NFC!")
-        return NRF_ERROR_INVALID_LENGTH;
+        NRF_LOG_ERROR("The nfc_index %d is not in range of [0, MAX_NFC_COUNT) in function %s", nfc_index, __func__);
+        return NRF_ERROR_INVALID_PARAM;
     }
 
-    bool isSame = true;
-    for (int i = 0; i<m_reg.count_nfc_list; i++)
+    if (spk_index < 0 || spk_index >= MAX_SPK_COUNT_PER_NFC)
     {
-        uint8_t index_nfc = m_reg.index_nfc_list[i];
-
-        // the length of NFC id of current index in register difference to that of specified in parameter
-        if (m_reg.nfc_list[index_nfc].nfc_id_len != nfc_id_len)
-        {
-            continue;
-        }
-
-        // the length of NFC id same but let's compare each byte of NFC id
-        isSame = memcmp(m_reg.nfc_list[index_nfc].nfc_id, p_nfc_id, nfc_id_len);
-        if (!isSame)
-        {
-            continue;
-        }
-
-        // the nfc id of current index of register is the same as specified in the parameter
-        break;
+        NRF_LOG_ERROR("The spk_index %d is not in range of [0, MAX_SPK_COUNT_PER_NFC) in function %s", spk_index, __func__);
+        return NRF_ERROR_INVALID_PARAM;
     }
     
-    if (!isSame)
+    //memcpy(&(data.p_data[OFFSET_SPK_ID]),&m_reg.nfc_list[nfc_index].spk_list[spk_index].spk_id, TOTAL_BYTES_SPK);
+    ASSIGN_16BIT_TO_8BIT_ARRAY(m_reg.nfc_list[nfc_index].spk_list[spk_index].spk_id, (&(data.p_data[OFFSET_SPK_ID])))
+    ASSIGN_32BIT_TO_8BIT_ARRAY(m_reg.nfc_list[nfc_index].spk_list[spk_index].counter, (&(data.p_data[OFFSET_COUNTER])));
+    //memcpy(&(data.p_data[OFFSET_COUNTER]),&m_reg.nfc_list[nfc_index].spk_list[spk_index].counter, TOTAL_BYTES_COUNTER);
+
+    data.length = TOTAL_BYTES_SPK_WITH_COUNTER;
+    
+    err = eeprom_write_data(&data, nfc_spk_start_address_spk_in_complete_set(nfc_index, spk_index));
+    if (err != NRF_SUCCESS)
     {
-        NRF_LOG_ERROR("No matching NFC ID in the register with the NFC ID specified in parameter");
-        return NRF_ERROR_INVALID_DATA;
+        NRF_LOG_ERROR("Failed to write to eeprom with SPK index %d and NFC index %d in function %s", spk_index, nfc_index, __func__);
+        return err;
     }
+
+    delay_after_write();
+    return NRF_SUCCESS;
+}
+
+//static ret_code_t nfc_spk_save_spk(uint8_t * p_nfc_id, uint8_t nfc_id_len)
+//{
+//    ret_code_t err;
+    
+//    if (m_reg.count_nfc_list == 0)
+//    {
+//        NRF_LOG_ERROR("Can't save SPK, since no active NFC!")
+//        return NRF_ERROR_INVALID_LENGTH;
+//    }
+
+//    bool isSame = true;
+//    for (int i = 0; i<m_reg.count_nfc_list; i++)
+//    {
+//        uint8_t index_nfc = m_reg.index_nfc_list[i];
+
+//        // the length of NFC id of current index in register difference to that of specified in parameter
+//        if (m_reg.nfc_list[index_nfc].nfc_id_len != nfc_id_len)
+//        {
+//            continue;
+//        }
+
+//        // the length of NFC id same but let's compare each byte of NFC id
+//        isSame = memcmp(m_reg.nfc_list[index_nfc].nfc_id, p_nfc_id, nfc_id_len);
+//        if (!isSame)
+//        {
+//            continue;
+//        }
+
+//        // the nfc id of current index of register is the same as specified in the parameter
+//        break;
+//    }
+    
+//    if (!isSame)
+//    {
+//        NRF_LOG_ERROR("No matching NFC ID in the register with the NFC ID specified in parameter");
+//        return NRF_ERROR_INVALID_DATA;
+//    }
  
+//}
+
+static void nfc_spk_reset_register()
+{
+    memset(&m_reg, 0, sizeof(nfc_spk_reg_t));
+}
+
+static void delay_after_write(){
+    nrf_delay_ms(DELAY_AFTER_WRITE);
 }

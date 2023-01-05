@@ -84,7 +84,7 @@
 
 #include "eeprom.h"
 
-#include "nfc_spk_eeprom.h"
+//#include "nfc_spk_eeprom.h"
 
 #define SEL_RES_CASCADE_BIT_NUM            3                                              /// Number of Cascade bit within SEL_RES byte.
 #define SEL_RES_TAG_PLATFORM_MASK          0x60                                           /// Mask of Tag Platform bit group within SEL_RES byte.

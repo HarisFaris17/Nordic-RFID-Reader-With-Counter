@@ -12,11 +12,14 @@
 // @brief data type for SPK. we did this to anticipate there is a change in spk id data size
 typedef uint16_t spk_id_t;
 
+// @brief data type for counter. actually we don't really need this, but it is a sugar for syntax
+typedef uint32_t counter_t;
+
 // @brief
 typedef struct
 {
-    spk_id_t spk_id;
-    uint32_t counter;
+    spk_id_t  spk_id;
+    counter_t counter;
 }spk_t;
 
 // @brief 
@@ -45,7 +48,7 @@ static ret_code_t nfc_spk_eeprom_init(nrf_drv_twi_t * const p_twi_master);
 
 static ret_code_t nfc_spk_retrieve_comprehensive();
 
-static ret_code_t nfc_spk_retrieve_complete_set_by_nfc_index(uint8_t index);
+static ret_code_t nfc_spk_retrieve_complete_set_by_nfc_index(uint8_t nfc_index);
 
 static ret_code_t nfc_spk_retrieve_spk(uint8_t nfc_index, uint8_t spk_index);
 
@@ -53,4 +56,12 @@ static ret_code_t nfc_spk_retrieve_start_page(uint8_t * p_num_of_active_nfc, uin
 
 static ret_code_t nfc_spk_save_comprehensive();
 
-static ret_code_t nfc_spk_save_spk(uint8_t * p_nfc_id, uint8_t nfc_id_len);
+static ret_code_t nfc_spk_save_complete_set_by_nfc_index(uint8_t nfc_index);
+
+static ret_code_t nfc_spk_save_spk(uint8_t nfc_index, uint8_t spk_index);
+
+static void nfc_spk_reset_register();
+
+//static ret_code_t nfc_spk_save_spk(uint8_t * p_nfc_id, uint8_t nfc_id_len);
+
+static void delay_after_write();

@@ -65,4 +65,5 @@ Output/Release/Obj/adafruit_tag_reader_pca10040/nfc_spk_eeprom.o: \
  ../../../../../../components/libraries/log/src/nrf_log_internal.h \
  ../../../../../../components/libraries/log/nrf_log_instance.h \
  ../../../../../../components/libraries/log/nrf_log_types.h \
- ../../../../../../components/libraries/log/nrf_log_types.h
+ ../../../../../../components/libraries/log/nrf_log_types.h \
+ ../../../../../../components/libraries/delay/nrf_delay.h
