@@ -1,55 +1,3 @@
-/**
- * Copyright (c) 2015 - 2021, Nordic Semiconductor ASA
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form, except as embedded into a Nordic
- *    Semiconductor ASA integrated circuit in a product or a software update for
- *    such product, must reproduce the above copyright notice, this list of
- *    conditions and the following disclaimer in the documentation and/or other
- *    materials provided with the distribution.
- *
- * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * 4. This software, with or without modification, must only be used with a
- *    Nordic Semiconductor ASA integrated circuit.
- *
- * 5. Any software provided in binary form under this license must not be reverse
- *    engineered, decompiled, modified and/or disassembled.
- *
- * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
-/**
- * @file
- * @brief An example of use of Adafruit tag reader combined with Type 2 Tag parser.
- *
- * @sa nfc_adafruit_tag_reader_example
- */
-
-/**
- * @defgroup nfc_adafruit_tag_reader_example This example presents combined use of the Adafruit tag reader
- *      (@ref adafruit_pn532) library with Type 2 Tag parser (@ref nfc_type_2_tag_parser).
-
- */
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -79,12 +27,9 @@
 #include "app_button.h"
 #include "app_timer.h"
 
-//#include "nrf_fstorage.h"
-//#include "nrf_fstorage_nvmc.h"
+//#include "eeprom.h"
 
-#include "eeprom.h"
-
-//#include "nfc_spk_eeprom.h"
+#include "nfc_spk_eeprom.h"
 
 #define SEL_RES_CASCADE_BIT_NUM            3                                              /// Number of Cascade bit within SEL_RES byte.
 #define SEL_RES_TAG_PLATFORM_MASK          0x60                                           /// Mask of Tag Platform bit group within SEL_RES byte.
@@ -139,7 +84,7 @@ typedef enum
 {
     NFC_T2T = 0x00,      ///< Type 2 Tag Platform.
     NFC_T4T = 0x01,      ///< Type 4A Tag Platform.
-    NFC_TT_NOT_SUPPORTED ///< Tag Type not supported.
+    NFC_TT_NOT_SUPPORTED ///< Tag Type not supported
 } nfc_tag_type_t;
 
 // @brief Possible state of display
@@ -166,9 +111,9 @@ static void update_display_state(display_state_type_t display_state);
 
 static void display_counting_done();
 
-static void save_eeprom();
+//static void save_eeprom();
 
-static void read_eeprom();
+//static void read_eeprom();
 
 //static void fstorage_handler(nrf_fstorage_evt_t * p_evt);
 
@@ -188,7 +133,7 @@ static nrf_drv_twi_t m_twi_master = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
 APP_TIMER_DEF(m_timer);
 
 // @brief data to store/send data from/to EEPROM
-static eeprom_data m_data;
+//static eeprom_data m_data;
 
 
 // object fstorage to store the counting and 
@@ -589,7 +534,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
             printf("Counter up\n");
             printf("Current counter : %d\n",m_active_nfc.counter);
             update_display_counter();
-            save_eeprom();
+            //save_eeprom();
             break;
 
           case BUTTON_COUNTER_DOWN:
@@ -604,7 +549,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
                 (m_active_nfc).counter--;
                 printf("Current counter : %d",m_active_nfc.counter);
                 update_display_counter();
-                save_eeprom();
+                //save_eeprom();
             }
             break;
 
@@ -619,7 +564,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t action){
               }
               nrf_gpio_pin_clear(led);
               update_display_state(DISPLAY_COUNTING_DONE);
-              save_eeprom();
+              //save_eeprom();
               err = app_timer_start(m_timer,
                                     APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),
                                     &m_display_state);
@@ -701,11 +646,11 @@ static void after_found(){
     update_display_state(DISPLAY_START);
     app_timer_start(m_timer,APP_TIMER_TICKS(DELAY_CHANGE_STATE_DISPLAY),&m_display_state);
 
-    save_eeprom();
+    //save_eeprom();
 
     nrf_delay_ms(1000);
 
-    read_eeprom();
+    //read_eeprom();
   }
 }
 
@@ -795,82 +740,132 @@ static void update_display_state(display_state_type_t display_state){
 }
 
 
-static void save_eeprom()
+//static void save_eeprom()
+//{
+//    ret_code_t err;
+//    // the counter will be stored big endianly
+//    ASSIGN_32BIT_TO_8BIT_ARRAY(m_active_nfc.counter, (&(m_data.p_data[INDEX_OF_COUNTER])));
+//    m_data.p_data[INDEX_OF_LENGTH_NFC] = m_active_nfc.nfc_id_len;
+//    memcpy(&(m_data.p_data[INDEX_OF_NFC_ID]), m_active_nfc.nfc_id, m_active_nfc.nfc_id_len);
+//    uint8_t total_data_length = INDEX_OF_NFC_ID + m_active_nfc.nfc_id_len;
+//    m_data.length = total_data_length;
+    
+    
+//    err = eeprom_write_data(&m_data, START_ADDR_DATA);
+//    APP_ERROR_CHECK(err);
+
+//    printf("Saved data to EEPROM : ");
+//    for(int i = 0; i<total_data_length; i++)
+//    {
+//        printf("0x%X ", m_data.p_data[i]);
+//    }
+//    printf("\n\r");
+
+//}
+
+//static void read_eeprom()
+//{
+//    ret_code_t err;
+//    memset(m_data.p_data, 0, MAX_BYTE_PER_TRX);
+//    printf("Reseted buffer : ");
+//    for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
+//    {
+//        printf("0x%X ", m_data.p_data[i]);
+//    }
+//    printf("\n\r");
+
+//    err = eeprom_read_data(&m_data, START_ADDR_DATA, MAX_BYTE_PER_TRX);
+//    APP_ERROR_CHECK(err);
+
+//    printf("Received buffer : ");
+//    for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
+//    {
+//        printf("0x%X ", m_data.p_data[i]);
+//    }
+//    printf("\n\r");
+//}
+
+//static void startup_eeprom(){
+//    printf("Retrieve data from EEPROM when starting up\n");
+//    // the data retrieved from eeprom will be saved in m_data
+//    read_eeprom();
+    
+//    if (m_data.p_data[INDEX_OF_LENGTH_NFC] == 0)
+//    {
+//        printf("No active data previouslly\n");
+//        return;
+//    }
+//    else
+//    {
+//        printf("Assign m_data to m_active_t\n");
+//        m_active_nfc.active = true;
+//        m_active_nfc.counter = CONVERT_8BIT_ARRAY_TO_32BIT(m_data.p_data);
+//        m_active_nfc.nfc_id_len = m_data.p_data[INDEX_OF_LENGTH_NFC];
+//        memcpy(m_active_nfc.nfc_id, &(m_data.p_data[INDEX_OF_NFC_ID]), m_active_nfc.nfc_id_len);
+//        printf("Retrieved active data : \n");
+//        printf("Counter : %d\n",  m_active_nfc.counter);
+//        printf("Length of NFC ID : %d\n", m_active_nfc.nfc_id_len);
+//        printf("NFC ID : ");
+//        for(int i = 0; i<m_active_nfc.nfc_id_len; i++)
+//        {
+//            printf("0x%X ",m_active_nfc.nfc_id[i]);
+//        }
+//        printf("\n\r");
+
+//        update_display_state(DISPLAY_COUNTING);
+//    }
+//}
+
+static void startup_nfc_spk_eeprom()
 {
     ret_code_t err;
-    // the counter will be stored big endianly
-    ASSIGN_32BIT_TO_8BIT_ARRAY(m_active_nfc.counter, (&(m_data.p_data[INDEX_OF_COUNTER])));
-    m_data.p_data[INDEX_OF_LENGTH_NFC] = m_active_nfc.nfc_id_len;
-    memcpy(&(m_data.p_data[INDEX_OF_NFC_ID]), m_active_nfc.nfc_id, m_active_nfc.nfc_id_len);
-    uint8_t total_data_length = INDEX_OF_NFC_ID + m_active_nfc.nfc_id_len;
-    m_data.length = total_data_length;
+    nfc_spk_reg_t * p_reg = nfc_spk_get_reg();
+
+    //NRF_LOG_INFO("Default register");
+    //default_registery();
+    //NRF_LOG_INFO("Registry size : %d",sizeof(nfc_spk_reg_t));
+    //NRF_LOG_FLUSH();
+    //NRF_LOG_HEXDUMP_INFO(p_reg, sizeof(nfc_spk_reg_t));
+    //NRF_LOG_FLUSH();
+
+    //NRF_LOG_INFO("Reset register");
+    //nfc_spk_reset_register();
+    //NRF_LOG_INFO("Registry size : %d",sizeof(nfc_spk_reg_t));
+    //NRF_LOG_FLUSH();
+    //NRF_LOG_HEXDUMP_INFO(p_reg, sizeof(nfc_spk_reg_t));
+    //NRF_LOG_FLUSH();
+
+    //NRF_LOG_INFO("save register comprehensive!");
+    //NRF_LOG_FLUSH();
+    //err = nfc_spk_save_comprehensive();
+    //APP_ERROR_CHECK(err);
+    //NRF_LOG_INFO("Register saved");
+    //NRF_LOG_FLUSH();
+
+    nfc_spk_retrieve_all();
     
-    
-    err = eeprom_write_data(&m_data, START_ADDR_DATA);
+    //NRF_LOG_INFO("0xEE register");
+    //nfc_spk_0xff_register();
+    //NRF_LOG_INFO("Registry size : %d",sizeof(nfc_spk_reg_t));
+    //NRF_LOG_FLUSH();
+    //NRF_LOG_HEXDUMP_INFO(p_reg, sizeof(nfc_spk_reg_t));
+    //NRF_LOG_FLUSH();
+
+    NRF_LOG_INFO("Retrieve comprehensive");
+    err = nfc_spk_retrieve_comprehensive();
     APP_ERROR_CHECK(err);
+    NRF_LOG_INFO("Comprehensive retreived");
+    NRF_LOG_FLUSH();
 
-    printf("Saved data to EEPROM : ");
-    for(int i = 0; i<total_data_length; i++)
-    {
-        printf("0x%X ", m_data.p_data[i]);
-    }
-    printf("\n\r");
+    NRF_LOG_INFO("Count NFC %d", nfc_spk_get_nfc_count());
+    NRF_LOG_FLUSH();
 
-}
+    NRF_LOG_INFO("Registry size : %d",sizeof(nfc_spk_reg_t));
+    NRF_LOG_FLUSH();
+    NRF_LOG_HEXDUMP_INFO(p_reg, sizeof(nfc_spk_reg_t));
+    NRF_LOG_FLUSH();
 
-static void read_eeprom()
-{
-    ret_code_t err;
-    memset(m_data.p_data, 0, MAX_BYTE_PER_TRX);
-    printf("Reseted buffer : ");
-    for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
-    {
-        printf("0x%X ", m_data.p_data[i]);
-    }
-    printf("\n\r");
-
-    err = eeprom_read_data(&m_data, START_ADDR_DATA, MAX_BYTE_PER_TRX);
-    APP_ERROR_CHECK(err);
-
-    printf("Received buffer : ");
-    for(int i = 0; i<MAX_BYTE_PER_TRX; i++)
-    {
-        printf("0x%X ", m_data.p_data[i]);
-    }
-    printf("\n\r");
-
-    
-}
-
-static void startup_eeprom(){
-    printf("Retrieve data from EEPROM when starting up\n");
-    // the data retrieved from eeprom will be saved in m_data
-    read_eeprom();
-    
-    if (m_data.p_data[INDEX_OF_LENGTH_NFC] == 0)
-    {
-        printf("No active data previouslly\n");
-        return;
-    }
-    else
-    {
-        printf("Assign m_data to m_active_t\n");
-        m_active_nfc.active = true;
-        m_active_nfc.counter = CONVERT_8BIT_ARRAY_TO_32BIT(m_data.p_data);
-        m_active_nfc.nfc_id_len = m_data.p_data[INDEX_OF_LENGTH_NFC];
-        memcpy(m_active_nfc.nfc_id, &(m_data.p_data[INDEX_OF_NFC_ID]), m_active_nfc.nfc_id_len);
-        printf("Retrieved active data : \n");
-        printf("Counter : %d\n",  m_active_nfc.counter);
-        printf("Length of NFC ID : %d\n", m_active_nfc.nfc_id_len);
-        printf("NFC ID : ");
-        for(int i = 0; i<m_active_nfc.nfc_id_len; i++)
-        {
-            printf("0x%X ",m_active_nfc.nfc_id[i]);
-        }
-        printf("\n\r");
-
-        update_display_state(DISPLAY_COUNTING);
-    }
+    nfc_spk_print_all_active_nfc_spk();
 }
 
 int main(void)
@@ -900,52 +895,59 @@ int main(void)
     printf("Display Idle SSD1306\n");
     update_display_state(DISPLAY_IDLE);
 
-    printf("Initializing EEPROM!\n");
-    err_code = eeprom_init(&m_twi_master);
+    //printf("Initializing EEPROM!\n");
+    //err_code = eeprom_init(&m_twi_master);
+    //APP_ERROR_CHECK(err_code);
+    //printf("EEPROM initialization success\n");
+
+    NRF_LOG_INFO("Initializing EEPROM NFC SPK");
+    err_code = nfc_spk_eeprom_init(&m_twi_master);
     APP_ERROR_CHECK(err_code);
-    printf("EEPROM initialization success\n");
+    NRF_LOG_INFO("EEPROM NFC SPK initialized");
 
-    startup_eeprom();
-    for (;;)
-    {
-        err_code = tag_detect_and_read();
-        switch (err_code)
-        {
-            case NRF_SUCCESS:
-                printf("Found\n");
-                NRF_LOG_INFO("Found");
-                after_found();
+    //startup_eeprom();
+    startup_nfc_spk_eeprom();
+    while(true);
+    //for (;;)
+    //{
+    //    err_code = tag_detectc_and_read();
+    //    switch (err_code)
+    //    {
+    //        case NRF_SUCCESS:
+    //            printf("Found\n");
+    //            NRF_LOG_INFO("Found");
+    //            after_found();
                 
-                after_read_delay();
+    //            after_read_delay();
                 
-                break;
+    //            break;
 
-            case NRF_ERROR_NO_MEM:
-                NRF_LOG_INFO("Declared buffer for T2T is to small to store tag data.");
-                printf("Declared buffer for T2T is to small to store tag data.\n");
-                after_read_delay();
-                break;
+    //        case NRF_ERROR_NO_MEM:
+    //            NRF_LOG_INFO("Declared buffer for T2T is to small to store tag data.");
+    //            printf("Declared buffer for T2T is to small to store tag data.\n");
+    //            after_read_delay();
+    //            break;
 
-            case NRF_ERROR_NOT_FOUND:
-                NRF_LOG_INFO("No Tag found.");
-                printf("No Tag found.\n");
-                // No delay here as we want to search for another tag immediately.
-                break;
+    //        case NRF_ERROR_NOT_FOUND:
+    //            NRF_LOG_INFO("No Tag found.");
+    //            printf("No Tag found.\n");
+    //            // No delay here as we want to search for another tag immediately.
+    //            break;
 
-            case NRF_ERROR_NOT_SUPPORTED:
-                NRF_LOG_INFO("Tag not supported.");
-                printf("Tag not supported.\n");
-                after_read_delay();
-                break;
+    //        case NRF_ERROR_NOT_SUPPORTED:
+    //            NRF_LOG_INFO("Tag not supported.");
+    //            printf("Tag not supported.\n");
+    //            after_read_delay();
+    //            break;
 
-            default:
-                NRF_LOG_INFO("Error during tag read.");
-                printf("Error during tag read.\n");
-                err_code = adafruit_pn532_field_off();
-                break;
-        }
-        NRF_LOG_FLUSH();
-    }
+    //        default:
+    //            NRF_LOG_INFO("Error during tag read.");
+    //            printf("Error during tag read.\n");
+    //            err_code = adafruit_pn532_field_off();
+    //            break;
+    //    }
+    //    NRF_LOG_FLUSH();
+    //}
 }
 
 
